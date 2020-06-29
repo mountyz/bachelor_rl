@@ -1,3 +1,5 @@
+#EXERCICE REPRIS DES TUTORIELS PYTORCH : https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
+
 import torch
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -9,29 +11,6 @@ learning_rate = 0.001
 dtype = torch.float
 device = torch.device("cpu")
 device = torch.device("cuda:0")
-
-def test_gradient():
-    datas = pd.read_csv('data.csv')
-    hidden_layer_size=1000
-
-    X = datas.iloc[:, 0]
-    Y = datas.iloc[:, 1]
-
-    x = torch.tensor(X, dtype=dtype, device=device)
-    y = torch.tensor(Y, dtype=dtype, device=device)
-
-    w1 = torch.randn(len(x), hidden_layer_size, device=device, dtype=dtype)
-    w2 = torch.randn(hidden_layer_size, len(y), device=device, dtype=dtype)
-
-    for i in range(500):
-        y_pred = x.mm(w1).clamp(min=0).mm(w2)
-        loss = (y_pred-y).pow(2).sum()
-
-        loss.backward()
-
-        with torch.no_grad():
-            w1 -= learning_rate * w1.grad
-            w2 -= learning_rate * w2.grad
 
 
 def gradient_descent_pytorch_nn():
@@ -118,10 +97,8 @@ def gradient_descent_numpy():
 
 def linear_regression_nothing():
     datas = pd.read_csv('data.csv')
-
     X = datas.iloc[:, 0]
     Y = datas.iloc[:, 1]
-
     m = 0
     b = 0
     i = 0
@@ -133,7 +110,6 @@ def linear_regression_nothing():
             m = m - learning_rate * (error * X)
             b = b - learning_rate * error
 
-        print("yaya")
         plt.scatter(X, Y)
         plt.plot([min(X), max(X)], [min(prediction), max(prediction)], color='red')
         plt.show()
@@ -145,5 +121,3 @@ def linear_regression_nothing():
             stop = input("stop ? y")
             if stop == "y":
                 break
-
-test_gradient()

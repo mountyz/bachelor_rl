@@ -1,5 +1,5 @@
-#EXERCICE REPRIS DES TUTORIELS PYTORCH : https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
-
+#EXERCICE REPRIS DES TUTORIELS PYTORCH :
+# https://pytorch.org/tutorials/beginner/pytorch_with_examples.html
 import torch
 import pandas as pd
 import matplotlib.pyplot as plt

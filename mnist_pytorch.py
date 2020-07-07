@@ -1,3 +1,5 @@
+#EXERCICE REPRIS DES TUTORIELS PYTORCH :
+# https://pytorch.org/tutorials/beginner/nn_tutorial.html
 import pickle
 import gzip
 import requests
@@ -6,13 +8,11 @@ import torch.nn as nn
 import math
 from pathlib import Path
 from matplotlib import pyplot
-from torch.utils.tensorboard import SummaryWriter
-import torchvision
 import numpy as np
 
 #a revoir je devrais faire en sortes d'être utilisable partout
 #ici utilisation de pytorch pour télécharger mnist et avoir le dataset
-data_path = Path("M:/users/Documents/data")
+data_path = Path("M:/users/Document/bachelor_rl/data")
 path = data_path / "mnist"
 
 path.mkdir(parents=True, exist_ok=True)
@@ -37,6 +37,12 @@ x_train, y_train, x_valid, y_valid = map(torch.tensor, (x_train, y_train, x_vali
 #récupère la taille des données
 n, c = x_train.shape
 
+x = torch.randn(1,10)
+print(x)
+print(x.exp())
+print(x.exp().sum(-1).log())
+print(x.exp().sum(-1).log().unsqueeze(-1))
+
 #initialisation des poids, 784 car l'image est en 28x28 en divisant par la racine carré de 784
 weights = torch.randn(784, 10) / math.sqrt(784)
 
@@ -58,7 +64,7 @@ def model(x):
 
 #Pas sur du  fonctionnement besoin d'explication
 def loss_function_cross_entropy(pred, target):
-    return target * math.log(pred)
+    return -(target * pred.log()).sum(-1)
 
 def accuracy(out, y):
     preds = torch.argmax(out, dim=1)
@@ -85,9 +91,12 @@ for epoch in range(epochs):
 
         #calcule du y_pred avec le modèle (softmax)
         y_pred = model(x)
+        print(y_pred.shape())
+        print(y.shape())
 
         #calcule de la loss avec le y_pred et le y
-        loss = criterion(y_pred, y)
+        #loss = criterion(y_pred, y)
+        loss = loss_function_cross_entropy(y_pred, y)
         #print(loss, accuracy(y_pred, y))
         #print(accuracy(y_pred, y))
         #print(loss.detach().numpy())

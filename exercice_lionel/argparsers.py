@@ -6,7 +6,7 @@ def argparser(description="DQN Exercise"):
     parser = argparse.ArgumentParser(description=description,
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--cuda', type=bool, default=False)
-    parser.add_argument('--render', type=bool, default=False)
+    parser.add_argument('--render', type=bool, default=True)
     parser.add_argument('--seed', type=int, default=0)
     parser.add_argument('--with_layernorm', type=bool, default=True)
     parser.add_argument('--rollout_len', type=int, default=2)

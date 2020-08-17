@@ -16,7 +16,6 @@ class ReplayBuffer:
 
     def store(self, transition):
         assert set(self._data.keys()) == set(transition.keys()), "non-matching keys"
-
         for key in self._keys:
             self._data[key].append(transition[key])
 
@@ -31,3 +30,4 @@ class ReplayBuffer:
     @property
     def size(self):
         return len(self._data['ob'])  # arbitrarily picking `ob`
+

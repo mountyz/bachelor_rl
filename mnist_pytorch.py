@@ -5,6 +5,7 @@ import gzip
 import requests
 import torch
 import torch.nn as nn
+import torch.optim as optim
 import math
 from pathlib import Path
 from matplotlib import pyplot
@@ -30,27 +31,26 @@ with gzip.open((path / filename).as_posix(), "rb") as f:
 #pyplot.imshow(x_train[0].reshape((28, 28)), cmap="gray")
 
 #_________________________________________________________________________________________________________________
-
 #le dataset récupéré est en numpy il faut alors convert nos datas en tensor
 x_train, y_train, x_valid, y_valid = map(torch.tensor, (x_train, y_train, x_valid, y_valid))
-
 #récupère la taille des données
 n, c = x_train.shape
 
-x = torch.randn(1,10)
-print(x)
-print(x.exp())
-print(x.exp().sum(-1).log())
-print(x.exp().sum(-1).log().unsqueeze(-1))
-
 #initialisation des poids, 784 car l'image est en 28x28 en divisant par la racine carré de 784
 weights = torch.randn(784, 10) / math.sqrt(784)
-
 #ici on ajouter le requires_grad sur le tensor des weigths
 weights.requires_grad_()
-
 #on créer notre bias (besoin de plus d'inforamtion)
 bias = torch.zeros(10, requires_grad=True)
+
+#pour bénéficier des foncionnalité d'optimisation,modèle utilisant nn.Module requis
+class mnist_model(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.lin = nn.Linear(784, 10)
+
+    def forward(self, x):
+        return self.lin(x)
 
 #softmax permet de transformer dans input (0 à 9) en probabilité en prenant l'exponientiel
 # et en la divisant par la somme de toutes les autres exponentielles
@@ -66,16 +66,25 @@ def model(x):
 def loss_function_cross_entropy(pred, target):
     return -(target * pred.log()).sum(-1)
 
+
 def accuracy(out, y):
     preds = torch.argmax(out, dim=1)
     return (preds == y).float().mean()
 
+def one_hot_enc(y):
+    enc_list = torch.zeros(len(y), 10)
+    for i in range(len(y)):
+        enc_list[i][y[i]] = 1
+    return enc_list
+
+
 batch_size = 64
-criterion = nn.CrossEntropyLoss()
-learning_rate = 0.5
+learning_rate = 0.001
 epochs = 10
 loss_track = []
 accuracy_track = []
+criterion = nn.CrossEntropyLoss()
+#opt = optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
 
 for epoch in range(epochs):
     for i in range((n - 1)// batch_size + 1):
@@ -88,24 +97,29 @@ for epoch in range(epochs):
         #recupération des données en fonction de l'échantillion
         x = x_train[start:end]
         y = y_train[start:end]
+        #y_label = one_hot_enc(y)
+        y_label = nn.functional.one_hot(y)
 
         #calcule du y_pred avec le modèle (softmax)
         y_pred = model(x)
-        print(y_pred.shape())
-        print(y.shape())
+
+        #loss_nll_man = -y_pred[range(y.shape[0]), y].mean()
+        #loss_ce_man = -(y_label * y_pred).sum()
+        #loss_ce_test =torch.mean(-torch.sum(y_label * torch.log(y_pred)))
+
 
         #calcule de la loss avec le y_pred et le y
         #loss = criterion(y_pred, y)
-        loss = loss_function_cross_entropy(y_pred, y)
+        print(y_pred)
+        print(y_label)
+        loss_fn = loss_function_cross_entropy(y_pred, y_label)
+
         #print(loss, accuracy(y_pred, y))
         #print(accuracy(y_pred, y))
         #print(loss.detach().numpy())
-        if i % 100 == 0:
-            loss_track.append(loss.item())
-            accuracy_track.append(accuracy(y_pred, y))
 
         #backpropagation
-        loss.backward()
+        loss_fn.sum().backward()
 
         #update manuel classic avec pytorch
         with torch.no_grad():
@@ -113,6 +127,11 @@ for epoch in range(epochs):
             bias -= bias.grad * learning_rate
             weights.grad.zero_()
             bias.grad.zero_()
+
+        #update les poids avec SGDOptim
+        #opt.step()
+        #opt.zero_grad()
+
 
 pyplot.plot(loss_track)
 pyplot.show()

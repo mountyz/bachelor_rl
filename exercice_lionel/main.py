@@ -94,6 +94,82 @@ class DQN(object):
             # Increment the interaction count
             timesteps_so_far += 1
 
+    def collect_2step_be(self):
+        # Initialize every variable involved in the data collection
+        timesteps_so_far = 0
+        env_rew = 0.0
+        s_t = self.env.reset()
+        a_t = None
+        r_t = None
+        cur_ep_len = 0
+        cur_ep_ret = 0
+        ep_lens = []
+        ep_rets = []
+        while True:
+            # Predict an action in the current state with the model
+            if a_t is None:
+                # Interact with the environment
+                a_t = self.act(s_t, timesteps_so_far)
+                a_t = a_t if isinstance(a_t, int) else a_t.item()
+                s_t_1, r_t, done_1, _ = self.env.step(a_t)
+                # Increment the interaction count
+                timesteps_so_far += 1
+            a_t_1 = self.act(s_t_1, timesteps_so_far)
+            a_t_1 = a_t_1 if isinstance(a_t_1, int) else a_t_1.item()
+            s_t_2, r_t_1, done_2, _ = self.env.step(a_t_1)
+            # Increment the interaction count
+            timesteps_so_far += 1
+            # Render if true
+            if self.hps.render:
+                self.env.render()
+            # Update episode statistics
+            cur_ep_len += 1
+            cur_ep_ret += r_t
+            # If the episode is over in step 2, variables : s_t, a_t, r(s_t, a_t) + r(s_t_1, a_t_1), s_t_2 needed
+            if done_2:
+                # Store the experienced transition in the replay buffer Store Done + 2
+                self.memory.store({'ob': s_t,
+                                   'ac': a_t,
+                                   # First, r_t with normal gamma, and second, r_t_1 with gamma = 1
+                                   'rew': args.gamma * r_t + r_t_1,
+                                   'next_ob': s_t_2,
+                                   'done': done_2})
+                # Store Done + 1
+                self.memory.store({'ob': s_t_1,
+                                   'ac': a_t_1,
+                                   'rew': r_t_1,
+                                   'next_ob': s_t_2,
+                                   'done': done_2})
+                s_t = self.env.reset()
+                a_t = None
+                r_t = None
+                ep_lens.append(cur_ep_len)
+                ep_rets.append(cur_ep_ret)
+                cur_ep_len = 0
+                cur_ep_ret = 0
+            else:
+                # Store for no done
+                self.memory.store({'ob': s_t,
+                                   'ac': a_t,
+                                   'rew': args.gamma * r_t + args.gamma ** 2 * r_t_1,
+                                   'next_ob': s_t_2,
+                                   'done': done_2})
+                # Make the next observations the current ones
+                # Move T + 1 to T
+                s_t = copy(s_t_1)
+                a_t = copy(a_t_1)
+                r_t = copy(r_t_1)
+                done_1 = copy(done_2)
+                # Move T + 2 to T + 1
+                s_t_1 = copy(s_t_2)
+            if timesteps_so_far > args.batch_size and timesteps_so_far % self.hps.rollout_len == 0:
+                # Return (yield) the collected data
+                yield (ep_lens, ep_rets)
+                # Once back in, reset the lists containing the episode statistics
+                ep_lens = []
+                ep_rets = []
+
+
     def train(self):
         # Get the random sample of transitions that the agent has observed
         transitions = self.memory.sample(args.batch_size)
@@ -103,21 +179,20 @@ class DQN(object):
         rewards = torch.from_numpy(transitions['rew'].T).float().to(device)
         next_states = torch.from_numpy(transitions['next_ob']).float().to(device)
         done = torch.from_numpy(transitions['done'].T.astype(np.uint8)).float().to(device)
-
         # Get max predicted Q values (for next states) from target model
         next_qvalues_target = self.target_q_net(next_states).detach().max(1)[0].unsqueeze(1)
         # Compute Q targets for current states
-        qvalues_target = rewards + (args.gamma * next_qvalues_target * (1 - done))
+        qvalues_target = rewards + (next_qvalues_target * (1 - done))
+        # 1 step bellman equation
+        #qvalues_target = rewards + ((args.gamma * next_qvalues_target) * (1 - done))
+        qvalues_target = qvalues_target[:,0].unsqueeze(1)
         # Get expected Q values from local model
         expected_qvalues_online = self.online_q_net(states).gather(1, actions.unsqueeze(1))
         # Compute the loss
-        loss = F.smooth_l1_loss(expected_qvalues_online, qvalues_target)
+        loss = F.mse_loss(expected_qvalues_online, qvalues_target)
         # Minimize the loss
         self.optimizer.zero_grad()
         loss.backward()
-        with torch.no_grad():
-            for param in self.online_q_net.parameters():
-                param -= args.learning_rate * param.grad
         self.optimizer.step()
 
 # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> Core.
@@ -153,17 +228,14 @@ ep_rets_win = viz.line(X=[0], Y=[np.nan])
 agent = DQN(env, device, args)
 
 # Create a generator to simulate interactions with the environment
-interaction = agent.collect()
+#interaction = agent.collect()
+interaction = agent.collect_2step_be()
 
 iters_so_far = 0
 ep_lens_buffer = deque(maxlen=600)
 ep_rets_buffer = deque(maxlen=600)
-show = 200
 
 for i in range(args.num_iters):
-
-
-
     # Collect samples by interacting with the environment
     ep_lens, ep_rets = interaction.__next__()
     ep_lens_buffer.extend(ep_lens)
@@ -177,10 +249,8 @@ for i in range(args.num_iters):
         agent.update_target_net()
 
     iters_so_far += 1
-    env.render()
 
     if iters_so_far % 100 == 0:
-
         # Print episode statistics
         viz.line(X=[iters_so_far],
                  Y=[np.nanmean(ep_rets_buffer)],

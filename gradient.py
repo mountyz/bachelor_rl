@@ -127,6 +127,7 @@ def gradient_descent_numpy():
     w1 = np.random.randn(input_dim, hidden_layer_size)
     w2 = np.random.randn(hidden_layer_size, output_dim)
 
+
     for i in range(epochs):
         #forward pass pour obtenir y_pred
         #x.dot(w1) permet de faire une multiplication de matrice entre le vecteur x (qui représente nos inputs)
@@ -155,7 +156,7 @@ def gradient_descent_numpy():
         gradient_h = gradient_h_relu.copy()
         #dans le gradient_h, tous ce qui est inférieur à 0 dans le h est mis à 0
         #lacune je comprend pas
-        gradient_h[h < 0] = 0
+        #gradient_h[h < 0] = 0
         #calcul du gradient_w1 avec x et gradient_h
         gradient_w1 = x.T.dot(gradient_h)
 
@@ -172,7 +173,7 @@ def linear_regression_nothing():
     i = 0
 
     while 1:
-        for i in range(epochs):
+        for j in range(200):
             #représente notre model de prediction, formule mathématique
             prediction = m * X + b
 
@@ -183,14 +184,17 @@ def linear_regression_nothing():
             m = m - learning_rate * (error * X)
             b = b - learning_rate * error
 
+
         plt.scatter(X, Y)
         plt.plot([min(X), max(X)], [min(prediction), max(prediction)], color='red')
         plt.show()
 
+
         i += 1
-        if i % 5 == 0:
-            print(i*1000, "epochs elapsed")
+        if i % 1 == 0:
+            print(i*200, "epochs elapsed")
 
             stop = input("stop ? y")
             if stop == "y":
                 break
+gradient_descent_numpy()
